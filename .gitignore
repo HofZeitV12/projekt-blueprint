@@ -1,0 +1,29 @@
+# Umgebungen und Geheimnisse – niemals committen
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.p12
+*credentials*.json
+*service-account*.json
+
+# Abzüge und Datenbankauszüge
+*.dump
+*.sql.gz
+*dump*.sql
+
+# Betriebssystem und Editor
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+.idea/
+.vscode/
+
+# Bauartefakte
+node_modules/
+dist/
+build/
+.next/
+*.log

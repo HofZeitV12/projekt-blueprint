@@ -1,0 +1,102 @@
+# Prüft diese Vorlage gegen ihre eigenen Regeln.
+# Eine Vorlage, die tote Verweise enthält oder deren Fassungen auseinanderlaufen,
+# widerspricht sich selbst.
+
+name: Prüfen
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: pruefen-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verweise:
+    name: Relative Verweise
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Tote Verweise finden
+        run: node tools/pruefe-verweise.mjs
+
+  fassungen:
+    name: BOOTSTRAP und Skill widerspruchsfrei
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Beide Fassungen beschreiben dieselben Phasen
+        run: |
+          set -e
+          BOOT=$(grep -c '^### Phase' BOOTSTRAP.md || true)
+          SKILL=$(grep -c '^\*\*Phase' skills/project-blueprint/SKILL.md || true)
+          echo "Phasen in BOOTSTRAP.md: $BOOT"
+          echo "Phasen in SKILL.md:      $SKILL"
+          if [ "$BOOT" -eq 0 ]; then
+            echo "FEHLER: BOOTSTRAP.md beschreibt keine Phasen."
+            exit 1
+          fi
+
+      - name: Skill-Dateien im Auftrag verlinkt
+        run: |
+          set -e
+          fehlend=0
+          for f in skills/project-blueprint/references/*.md; do
+            name=$(basename "$f")
+            if ! grep -q "$name" BOOTSTRAP.md; then
+              echo "FEHLER: $name ist in BOOTSTRAP.md nicht verlinkt."
+              fehlend=1
+            fi
+          done
+          if [ "$fehlend" -ne 0 ]; then exit 1; fi
+          echo "Alle Referenzdateien sind im Auftrag verlinkt."
+
+      - name: Keine echten Schlüssel
+        run: |
+          set -e
+          if grep -rnE '(sk_live_|sk_test_|whsec_|ghp_|github_pat_|eyJ[A-Za-z0-9_-]{20,}\.)' \
+               --include='*.md' --include='*.mjs' --include='*.yml' . ; then
+            echo "FEHLER: Ein Wert, der wie ein echter Schlüssel aussieht, steht im Repository."
+            exit 1
+          fi
+          echo "Keine schlüsselartigen Werte gefunden."
+
+      - name: Keine projektspezifischen Namen
+        run: |
+          set -e
+          # Projektfremde Kennungen dürfen nicht in die Vorlage geraten.
+          # Der Kontoname des Eigentümers (HofZeitV12) ist erlaubt und wird nicht geprüft.
+          verboten='menultems|speisekarte-two|jxqhqarszulgwktorzfc|smart-order1'
+          if grep -rniE "$verboten" --include='*.md' --include='*.mjs' . ; then
+            echo "FEHLER: projektspezifischer Name gefunden. Die Vorlage muss neutral bleiben."
+            exit 1
+          fi
+          echo "Vorlage ist frei von projektspezifischen Namen."
+
+  groesse:
+    name: BOOTSTRAP bleibt ladbar
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Zeilen zählen
+        run: |
+          set -e
+          ZEILEN=$(wc -l < BOOTSTRAP.md)
+          echo "BOOTSTRAP.md: $ZEILEN Zeilen"
+          if [ "$ZEILEN" -gt 400 ]; then
+            echo "FEHLER: BOOTSTRAP.md überschreitet 400 Zeilen."
+            echo "Vertiefung gehört nach skills/project-blueprint/references/."
+            exit 1
+          fi
+          echo "Größe in Ordnung."
