@@ -64,8 +64,12 @@ jobs:
       - name: Keine echten Schlüssel
         run: |
           set -e
-          if grep -rnE '(sk_live_|sk_test_|whsec_|ghp_|github_pat_|eyJ[A-Za-z0-9_-]{20,}\.)' \
-               --include='*.md' --include='*.mjs' --include='*.yml' . ; then
+          # Gesucht wird ein SCHLÜSSEL, nicht das Suchmuster selbst.
+          # Deshalb: Präfix + mindestens 24 Zeichen aus dem Zeichenvorrat von Schlüsseln.
+          # Die Musterliterale in diesem Workflow und in der Doku sind zu kurz und
+          # enthalten Zeichen, die kein Schlüssel enthält — sie treffen also nicht.
+          MUSTER='(sk_live_[A-Za-z0-9]{24,}|sk_test_[A-Za-z0-9]{24,}|whsec_[A-Za-z0-9]{24,}|ghp_[A-Za-z0-9]{24,}|github_pat_[A-Za-z0-9_]{24,}|eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,})'
+          if grep -rnE "$MUSTER" --include='*.md' --include='*.mjs' --include='*.yml' . ; then
             echo "FEHLER: Ein Wert, der wie ein echter Schlüssel aussieht, steht im Repository."
             exit 1
           fi
