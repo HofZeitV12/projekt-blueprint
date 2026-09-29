@@ -1,0 +1,6 @@
+# Zeilenenden vereinheitlichen – Windows-Anwender sollen die Vorlagen
+# nicht mit CRLF einchecken, sonst wird jeder Push zum reinen Zeilenwechsel.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.zip binary
